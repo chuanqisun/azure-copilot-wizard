@@ -2,7 +2,6 @@ import type { MessageToFigma, MessageToWeb, RenderAutoLayoutItem, SearchNodeResu
 import { getProxyToFigma } from "@h20/figma-tools";
 import { render } from "preact";
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
-import { abortTask } from "./modules/copilot/abort";
 
 const proxyToFigma = getProxyToFigma<MessageToFigma, MessageToWeb>(import.meta.env.VITE_PLUGIN_ID);
 
@@ -34,10 +33,6 @@ function App() {
 
       if (pluginMessage.selectionChanged) {
         setSelection(pluginMessage.selectionChanged);
-      }
-
-      if (pluginMessage.abortTask) {
-        abortTask(pluginMessage.abortTask);
       }
     };
 
