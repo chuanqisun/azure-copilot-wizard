@@ -51,6 +51,11 @@ function App() {
     handleLoadTemplates();
   }, []);
 
+  const byName = useCallback((name: string) => (node: SearchNodeResult) => node.name === name, []);
+  const byNameStartsWith = useCallback((name: string) => (node: SearchNodeResult) => node.name.startsWith(name), []);
+  const addDisplayName = useCallback((prefix: string) => (node: SearchNodeResult) => ({ ...node, displayName: node.name.replace(prefix, "") }), []);
+  const byLocaleComapreDisplayName = useCallback(<T extends { displayName: string }>(a: T, b: T) => a.displayName.localeCompare(b.displayName), []);
+
   const handleLoadTemplates = async () => {
     const { searchNodesByNamePattern } = await proxyToFigma.request({
       searchNodesByNamePattern: String.raw`@(copilot-template\/.+)|(thread)|(user-template)|(suggest-template)|(spinner-template)`,
@@ -59,24 +64,18 @@ function App() {
 
     setTemplateLibrary((prev) => ({
       ...prev,
-      threadTemplates: searchNodesByNamePattern.filter((p) => p.name === "@thread"),
-      userTemplates: searchNodesByNamePattern.filter((p) => p.name === "@user-template"),
-      spinnerTemplates: searchNodesByNamePattern.filter((p) => p.name === "@spinner-template"),
-      suggestContainer: searchNodesByNamePattern.filter((p) => p.name === "@suggest-area"),
+      threadTemplates: searchNodesByNamePattern.filter(byName("@thread")),
+      userTemplates: searchNodesByNamePattern.filter(byName("@user-template")),
+      spinnerTemplates: searchNodesByNamePattern.filter(byName("@spinner-template")),
+      suggestContainer: searchNodesByNamePattern.filter(byName("@suggest-area")),
       suggestTemplates: searchNodesByNamePattern
-        .filter((p) => p.name.startsWith("@suggest-template/"))
-        .map((p) => ({
-          ...p,
-          displayName: p.name.replace("@suggest-template/", ""),
-        }))
-        .sort((a, b) => a.displayName.localeCompare(b.displayName)),
+        .filter(byNameStartsWith("@suggest-template/"))
+        .map(addDisplayName("@suggest-template/"))
+        .sort(byLocaleComapreDisplayName),
       copilotTemplates: searchNodesByNamePattern
-        .filter((p) => p.name.startsWith("@copilot-template/"))
-        .map((p) => ({
-          ...p,
-          displayName: p.name.replace("@copilot-template/", ""),
-        }))
-        .sort((a, b) => a.displayName.localeCompare(b.displayName)),
+        .filter(byNameStartsWith("@copilot-template/"))
+        .map(addDisplayName("@copilot-template/"))
+        .sort(byLocaleComapreDisplayName),
     }));
   };
 
@@ -248,7 +247,7 @@ function App() {
               handleRenderItem({
                 containerName: "@suggest-container",
                 templateName: template.name,
-                clear: "@suggestion-container",
+                clear: "@suggest-container",
               })
             }
           >
