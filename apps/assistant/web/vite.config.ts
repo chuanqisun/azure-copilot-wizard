@@ -11,7 +11,6 @@ export default defineConfig({
     open: "debug.html",
   },
   build: {
-    outDir: "../../server/dist/static",
     rollupOptions: {
       input: {
         main: resolve(__dirname, "index.html"),
