@@ -47,10 +47,10 @@ export async function handleRenderAutoLayoutItem(message: MessageToFigma) {
 
     if (message.renderAutoLayoutItem.replacements) {
       const allTextNodes = instance.findAllWithCriteria({ types: ["TEXT"] });
-      const loadFont = allTextNodes[0].fontName as FontName;
-      if (loadFont) {
-        await figma.loadFontAsync(loadFont);
-      }
+      const loadFonts = (allTextNodes.map((node) => node.fontName) as FontName[]).filter(
+        (value, index, self) => self.findIndex((t) => t.family === value.family && t.style === value.style) === index
+      ) as FontName[];
+      await Promise.all(loadFonts.map((font) => figma.loadFontAsync(font)));
 
       allTextNodes.forEach((textNode) => {
         Object.entries(message.renderAutoLayoutItem!.replacements!).forEach(([key, value]) => {
