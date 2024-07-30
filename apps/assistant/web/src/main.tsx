@@ -51,7 +51,7 @@ function App() {
 
   const handleLoadTemplates = async () => {
     const { searchNodesByNamePattern } = await proxyToFigma.request({
-      searchNodesByNamePattern: String.raw`@(copilot-template\/.+)|(thread)|(user-template)|(spinner-template)`,
+      searchNodesByNamePattern: String.raw`@(copilot-template\/.+)|(thread)|(user-template)|(suggest-template)|(spinner-template)`,
     });
     if (!searchNodesByNamePattern) return;
 
