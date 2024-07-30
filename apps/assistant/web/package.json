@@ -9,7 +9,6 @@
     "preview": "vite preview --port 5200"
   },
   "dependencies": {
-    "@microsoft/applicationinsights-web": "^3.3.0",
     "@streamparser/json": "^0.0.21",
     "acs-expression-builder": "^0.0.2",
     "gpt-tokenizer": "^2.1.2",

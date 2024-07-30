@@ -1,64 +1,44 @@
-import type { CardData, MessageToFigma, MessageToWeb } from "@h20/assistant-types";
-import { useAuth } from "@h20/auth/preact-hooks";
+import type { MessageToFigma, MessageToWeb, RenderAutoLayoutItem, SearchNodeResult, SelectionSummary } from "@h20/assistant-types";
 import { getProxyToFigma } from "@h20/figma-tools";
-import { render, type JSX } from "preact";
-import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
-import type { HitsDisplayNode } from "./modules/display/display-node";
-import { handleAddedCards } from "./modules/handlers/handle-added-cards";
-import { handleDropHtml } from "./modules/handlers/handle-drop-html";
-import { handleMarkCardAsAdded } from "./modules/handlers/handle-mark-card-as-added";
-import { HitsArticle } from "./modules/hits/article";
-import { EmptyMessage } from "./modules/hits/empty";
-import { ErrorMessage } from "./modules/hits/error";
-import { ReportViewer } from "./modules/hits/report-viewer";
-import { useHandleAddCards } from "./modules/hits/use-handle-add-cards";
-import { useReportDetails } from "./modules/hits/use-report-details";
-import { appInsights } from "./modules/telemetry/app-insights";
-import type { SearchRes, WorkerEvents, WorkerRoutes } from "./routes";
-import { ProgressBar } from "./styles/components/progress-bar";
-import { Welcome } from "./styles/components/welcome";
-import { debounce } from "./utils/debounce";
-import { getUniqueFilter } from "./utils/get-unique-filter";
-import { useConcurrentTasks } from "./utils/use-concurrent-tasks";
-import { useInfiniteScroll } from "./utils/use-infinite-scroll";
-import { WorkerClient } from "./utils/worker-rpc";
-import WebWorker from "./worker?worker";
+import { render } from "preact";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
+import { abortTask } from "./modules/copilot/abort";
 
-// start worker ASAP
-const worker = new WorkerClient<WorkerRoutes, WorkerEvents>(new WebWorker()).start();
-const PAGE_SIZE = 20;
+const proxyToFigma = getProxyToFigma<MessageToFigma, MessageToWeb>(import.meta.env.VITE_PLUGIN_ID);
 
 // remove loading placeholder
 document.getElementById("app")!.innerHTML = "";
 window.focus();
 
-const proxyToFigma = getProxyToFigma<MessageToFigma, MessageToWeb>(import.meta.env.VITE_PLUGIN_ID);
+interface TemplateLibrary {
+  threadTemplates: SearchNodeResult[];
+  userTemplates: SearchNodeResult[];
+  spinnerTemplates: SearchNodeResult[];
+  copilotTemplates: (SearchNodeResult & { displayName: string })[];
+}
 
-appInsights.trackPageView();
-
-function App(props: { worker: WorkerClient<WorkerRoutes, WorkerEvents> }) {
-  useEffect(() => {
-    document.querySelector<HTMLInputElement>(`input[type="search"]`)?.focus();
-  }, []);
-
-  const { worker } = props;
-  const { isConnected, signIn, signOut, accessToken, isTokenExpired } = useAuth({
-    serverHost: import.meta.env.VITE_H20_SERVER_HOST,
+function App() {
+  const [selection, setSelection] = useState<SelectionSummary | null>(null);
+  const [templateLibrary, setTemplateLibrary] = useState<TemplateLibrary>({
+    copilotTemplates: [],
+    threadTemplates: [],
+    userTemplates: [],
+    spinnerTemplates: [],
   });
-
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const toggleMenu = useCallback(() => setIsMenuOpen((isOpen) => !isOpen), []);
-
-  const [sessionVisitedIds, setSessionVisitedIds] = useState(new Set<string>());
 
   // Figma RPC
   useEffect(() => {
     const handleMainMessage = (e: MessageEvent) => {
-      const message = e.data.pluginMessage as MessageToWeb;
-      console.log(`[ipc] Figma -> Web`, message);
-      handleDropHtml(message, proxyToFigma);
-      handleAddedCards(message, appInsights);
-      handleMarkCardAsAdded(message, (...ids) => setSessionVisitedIds((prev) => new Set([...prev, ...ids])));
+      const pluginMessage = e.data.pluginMessage as MessageToWeb;
+      console.log(`[ipc] Main -> UI`, pluginMessage);
+
+      if (pluginMessage.selectionChanged) {
+        setSelection(pluginMessage.selectionChanged);
+      }
+
+      if (pluginMessage.abortTask) {
+        abortTask(pluginMessage.abortTask);
+      }
     };
 
     window.addEventListener("message", handleMainMessage);
@@ -66,202 +46,169 @@ function App(props: { worker: WorkerClient<WorkerRoutes, WorkerEvents> }) {
     return () => window.removeEventListener("message", handleMainMessage);
   }, []);
 
-  const [query, setQuery] = useState("");
-  const [inputState, setInputState] = useState({ effectiveQuery: "", skip: 0 });
-  const setInputStateDebounced = debounce(setInputState, 250);
+  useEffect(() => {
+    proxyToFigma.notify({ detectSelection: true });
 
-  const [outputState, setOutputState] = useState({
-    showTopLoadingSpinner: false,
-    showBottomLoadingSpinner: false,
-    showErrorMessage: false,
-    shouldDetectBottom: false,
-    showEmptyState: false,
-    nodes: [] as HitsDisplayNode[],
-  });
-
-  const handleInputChange = useCallback((event: JSX.TargetedEvent) => {
-    setQuery((event.target as any).value);
-    scrollToTop();
-
-    const trimmedValue = (event.target as any).value.trim();
-    (trimmedValue ? setInputStateDebounced : setInputState)({
-      effectiveQuery: trimmedValue,
-      skip: 0,
-    });
+    handleLoadTemplates();
   }, []);
 
-  const keywordSearch = useCallback((top: number, skip: number, query: string) => worker.request("search", { query, accessToken, skip, top }), [accessToken]);
-  const recentSearch = useCallback((top: number, skip: number) => worker.request("recent", { accessToken, skip, top }), [accessToken]);
-  const anySearch = useCallback(
-    (top: number, skip: number, query?: string) => (query ? keywordSearch(top, skip, query) : recentSearch(top, skip)),
-    [keywordSearch, recentSearch]
-  );
+  const handleLoadTemplates = async () => {
+    const { searchNodesByNamePattern } = await proxyToFigma.request({
+      searchNodesByNamePattern: String.raw`@(copilot-template\/.+)|(thread)|(user-template)|(spinner-template)`,
+    });
+    if (!searchNodesByNamePattern) return;
 
-  // handle send card to figma
-  const handleAddCards = useHandleAddCards(proxyToFigma);
-  const handleAddCardsWithVisitTracking = useCallback(
-    (cards: CardData[]) => {
-      handleAddCards(cards);
-      setSessionVisitedIds((prev) => new Set([...prev, ...cards.map((card) => card.entityId)]));
-    },
-    [handleAddCards]
-  );
-
-  const { queue, add } = useConcurrentTasks<SearchRes>();
-
-  useEffect(() => {
-    if (isTokenExpired) return;
-
-    add({ queueKey: inputState.effectiveQuery, itemKey: `${inputState.skip}`, work: () => anySearch(PAGE_SIZE, inputState.skip, inputState.effectiveQuery) });
-  }, [inputState.skip, inputState.effectiveQuery, anySearch, isTokenExpired]);
-
-  const { isSearchPending, isLoadingMore, isSearchError, hasMore, resultNodes } = useMemo(
-    () => ({
-      isSearchPending: queue.some((item) => item.isPending),
-      isLoadingMore: queue.length > 1 && queue[queue.length - 1].isPending,
-      isSearchError: queue.some((item) => item.error),
-      hasMore: queue[queue.length - 1]?.result?.hasMore,
-      resultNodes: queue
-        .filter((item) => item.result)
-        .sort((a, b) => a.result!.skip - b.result!.skip)
-        .flatMap((item) => item.result!.nodes)
-        .filter(getUniqueFilter((a, b) => a.id === b.id)),
-    }),
-    [queue]
-  );
-
-  // Get output state
-  useEffect(() => {
-    const showTopLoadingSpinner = isConnected === undefined || (isConnected && isSearchPending && !isLoadingMore);
-    const showBottomLoadingSpinner = isLoadingMore;
-    const shouldDetectBottom = !!isConnected && !isSearchPending && !isLoadingMore && resultNodes.length > 0;
-    const showEmptyState = !!isConnected && !isSearchPending && resultNodes.length === 0 && !isSearchError;
-
-    setOutputState((prevState) => ({
-      showTopLoadingSpinner,
-      showBottomLoadingSpinner,
-      showErrorMessage: isSearchError,
-      shouldDetectBottom,
-      showEmptyState,
-      nodes: isSearchPending ? prevState.nodes : resultNodes,
+    setTemplateLibrary((prev) => ({
+      ...prev,
+      threadTemplates: searchNodesByNamePattern.filter((p) => p.name === "@thread"),
+      userTemplates: searchNodesByNamePattern.filter((p) => p.name === "@user-template"),
+      spinnerTemplates: searchNodesByNamePattern.filter((p) => p.name === "@spinner-template"),
+      copilotTemplates: searchNodesByNamePattern
+        .filter((p) => p.name.startsWith("@copilot-template/"))
+        .map((p) => ({
+          ...p,
+          displayName: p.name.replace("@copilot-template/", ""),
+        }))
+        .sort((a, b) => a.displayName.localeCompare(b.displayName)),
     }));
-  }, [isConnected, isSearchPending, isLoadingMore, isSearchError, resultNodes]);
-
-  const { setScrollContainerRef, shouldLoadMore, scrollToTop, InfiniteScrollBottom } = useInfiniteScroll();
-
-  useEffect(() => {
-    if (shouldLoadMore && hasMore && !isSearchPending) {
-      setInputState((prev) => ({
-        ...prev,
-        skip: prev.skip + PAGE_SIZE,
-      }));
-    }
-  }, [hasMore, shouldLoadMore, isSearchPending]);
-
-  const [selectedCard, setSelectedCard] = useState<CardData | null>(null);
-  const handleSelectCard = (cardData: CardData) => {
-    setSelectedCard(cardData);
-    setSessionVisitedIds((prev) => new Set([...prev, cardData.entityId]));
-    (document.getElementById("report-viewer-dialog") as HTMLDialogElement)?.showModal();
-
-    appInsights.trackEvent({ name: "selected-card" }, { cardData });
   };
 
-  const handleOpenCard = (cardData: CardData) => {
-    setSessionVisitedIds((prev) => new Set([...prev, cardData.entityId]));
-    appInsights.trackEvent({ name: "opened-card" }, { cardData });
+  const handleRenderItem = async (request: RenderAutoLayoutItem) => {
+    proxyToFigma.notify({ renderAutoLayoutItem: request });
   };
 
-  const { report, isLoading: isReportDetailsLoading } = useReportDetails({
-    isTokenExpired,
-    accessToken,
-    entityId: selectedCard?.entityId,
-    entityType: selectedCard?.entityType,
-    worker,
-  });
+  const handleZoomNodeIntoView = async (names: string[]) => {
+    proxyToFigma.notify({ zoomIntoViewByNames: names });
+  };
+
+  const clearTextAreaElement = (element?: HTMLTextAreaElement | null) => {
+    if (!element) return;
+    element.value = "";
+  };
+
+  const handleLocateNodeByNames = useCallback((names: string[]) => {
+    handleLoadTemplates();
+    handleZoomNodeIntoView(names);
+  }, []);
+
+  const userMessageTextAreaRef = useRef<HTMLTextAreaElement>(null);
+  const copilotMessageVariableValueRef = useRef<HTMLTextAreaElement>(null);
+
+  const TemplateLocator = (options: { templateNames: string[]; componentNamePattern: string }) => {
+    return options.templateNames?.length ? (
+      <a href="javascript:void(0)" onClick={() => handleLocateNodeByNames(options.templateNames)} title="Click to locate">
+        ❖{options.componentNamePattern}
+      </a>
+    ) : (
+      <a
+        href="javascript:void(0)"
+        onClick={() => handleLocateNodeByNames(options.templateNames)}
+        title={`Component or Frame named "${options.componentNamePattern}" not found. Click to re-scan`}
+      >
+        ❖{options.componentNamePattern} ⚠️
+      </a>
+    );
+  };
 
   return (
-    <>
-      {isConnected === undefined ? null : (
-        <header class="c-app-header">
-          <input class="c-app-header__input c-search-input" type="search" placeholder="Search" spellcheck={false} value={query} onInput={handleInputChange} />
-          <button class="u-reset c-app-header__trigger c-menu-trigger-button" data-active={isMenuOpen} onClick={toggleMenu}>
-            Menu
-          </button>
-          {isMenuOpen && (
-            <menu class="c-app-header__menu c-app-menu" onClick={toggleMenu}>
-              {isConnected === undefined && <span class="c-app-menu--text">Signing in...</span>}
-              {isConnected === false && (
-                <button class="u-reset c-app-menu--btn" onClick={signIn}>
-                  Sign in
-                </button>
-              )}
-              {isConnected && (
-                <>
-                  <button class="u-reset c-app-menu--btn" onClick={() => location.replace(`./copilot.html?t=${Date.now()}`)}>
-                    Copilot
-                  </button>
-                  <button class="u-reset c-app-menu--btn" onClick={() => location.replace(`./wizard.html?t=${Date.now()}`)}>
-                    Wizard
-                  </button>
-                  {/* <button class="u-reset c-app-menu--btn" onClick={() => location.replace(`./guide.html?t=${Date.now()}`)}>
-                    Guide
-                  </button> */}
-                  <button class="u-reset c-app-menu--btn" onClick={signOut}>
-                    Sign out
-                  </button>
-                </>
-              )}
-            </menu>
-          )}
+    <div class="c-module-stack">
+      <section class="c-module-stack__section">
+        <header class="c-split-header">
+          <h2>Thread</h2>
+          <span>
+            <TemplateLocator templateNames={templateLibrary.threadTemplates.map((t) => t.name)} componentNamePattern="@thread" />
+          </span>
         </header>
-      )}
-      <main class="c-app-layout__main u-scroll" ref={setScrollContainerRef}>
-        {outputState.showTopLoadingSpinner && <ProgressBar />}
-        {outputState.showErrorMessage && (
-          <section class="c-welcome-mat">
-            <ErrorMessage />
-          </section>
-        )}
-        {isConnected === false && <Welcome onSignIn={signIn} />}
-        {selectedCard ? (
-          <dialog id="report-viewer-dialog" class="c-app-layout c-report-viewer-overlay">
-            <header class="c-app-header">
-              <button class="u-reset c-back-button c-bottom-divider" onClick={() => setSelectedCard(null)}>
-                Back to search results
-              </button>
-            </header>
-            <div class="c-app-layout__main u-scroll">
-              {isReportDetailsLoading && <ProgressBar />}
-              {!isReportDetailsLoading && report && <ReportViewer report={report} onAddMultiple={handleAddCardsWithVisitTracking} onOpen={handleOpenCard} />}
-            </div>
-          </dialog>
-        ) : null}
-        {isConnected && (
-          <ul class="c-list">
-            {outputState.nodes.map((parentNode, index) => (
-              <HitsArticle
-                key={parentNode.id}
-                node={parentNode}
-                isParent={true}
-                onSelect={handleSelectCard}
-                onOpen={handleOpenCard}
-                onAddMultiple={handleAddCardsWithVisitTracking}
-                visitedIds={sessionVisitedIds}
-              />
-            ))}
-          </ul>
-        )}
-        {outputState.showEmptyState && (
-          <p class="c-welcome-mat">
-            <EmptyMessage searchTerm={inputState.effectiveQuery} />
-          </p>
-        )}
-        {outputState.showBottomLoadingSpinner && <ProgressBar inline={true} />}
-        {outputState.shouldDetectBottom && <InfiniteScrollBottom />}
-      </main>
-    </>
+        <menu class="c-columns">
+          <button
+            onClick={() => {
+              /* tbd */
+            }}
+          >
+            Undo
+          </button>
+          <button onClick={() => handleRenderItem({ containerName: "@thread", clear: true })}>Clear</button>
+        </menu>
+      </section>
+      <section class="c-module-stack__section">
+        <header class="c-split-header">
+          <h2>User message</h2>
+          <span>
+            <TemplateLocator templateNames={templateLibrary.userTemplates.map((t) => t.name)} componentNamePattern="@user-template" />
+          </span>
+        </header>
+        <textarea rows={6} ref={userMessageTextAreaRef}></textarea>
+        <button
+          onClick={() =>
+            handleRenderItem({
+              containerName: "@thread",
+              templateName: "@user-template",
+              replacements: {
+                content: userMessageTextAreaRef.current?.value ?? "",
+              },
+            }).then(() => clearTextAreaElement(userMessageTextAreaRef.current))
+          }
+        >
+          Append
+        </button>
+      </section>
+
+      <section class="c-module-stack__section">
+        <header class="c-split-header">
+          <h2>Spinner</h2>
+          <span>
+            <TemplateLocator templateNames={templateLibrary.spinnerTemplates.map((t) => t.name)} componentNamePattern="@spinner-template" />
+          </span>
+        </header>
+        <button
+          onClick={() =>
+            handleRenderItem({
+              containerName: "@thread",
+              templateName: "@spinner-template",
+              clear: "@spinner-instance",
+            })
+          }
+        >
+          Show spinner
+        </button>
+      </section>
+
+      <section class="c-module-stack__section">
+        <div class="c-split-header">
+          <h2>Copilot message</h2>
+          <span>
+            <TemplateLocator templateNames={templateLibrary.copilotTemplates.map((t) => t.name)} componentNamePattern="@copilot-template/*" />
+          </span>
+        </div>
+        {templateLibrary.copilotTemplates.map((template) => (
+          <button
+            onClick={() =>
+              handleRenderItem({
+                containerName: "@thread",
+                templateName: template.name,
+                clear: "@spinner-instance",
+                replacements: {
+                  content: copilotMessageVariableValueRef.current?.value ?? "",
+                },
+              }).then(() => clearTextAreaElement(copilotMessageVariableValueRef.current))
+            }
+          >
+            {template.displayName}
+          </button>
+        ))}
+        <details open>
+          <summary>Variable value</summary>
+          <div class="c-module-stack__section c-module-stack__no-padding">
+            <textarea
+              rows={6}
+              ref={copilotMessageVariableValueRef}
+              placeholder="Enter any text to replace the {{content}} string in the Copilot message template."
+            ></textarea>
+          </div>
+        </details>
+      </section>
+    </div>
   );
 }
 
-render(<App worker={worker} />, document.getElementById("app") as HTMLElement);
+render(<App />, document.getElementById("app") as HTMLElement);
