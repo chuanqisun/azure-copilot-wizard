@@ -14,6 +14,7 @@ interface TemplateLibrary {
   userTemplates: SearchNodeResult[];
   spinnerTemplates: SearchNodeResult[];
   copilotTemplates: (SearchNodeResult & { displayName: string })[];
+  suggestContainer: SearchNodeResult[];
   suggestTemplates: (SearchNodeResult & { displayName: string })[];
 }
 
@@ -24,6 +25,7 @@ function App() {
     threadTemplates: [],
     userTemplates: [],
     spinnerTemplates: [],
+    suggestContainer: [],
     suggestTemplates: [],
   });
 
@@ -60,6 +62,7 @@ function App() {
       threadTemplates: searchNodesByNamePattern.filter((p) => p.name === "@thread"),
       userTemplates: searchNodesByNamePattern.filter((p) => p.name === "@user-template"),
       spinnerTemplates: searchNodesByNamePattern.filter((p) => p.name === "@spinner-template"),
+      suggestContainer: searchNodesByNamePattern.filter((p) => p.name === "@suggest-area"),
       suggestTemplates: searchNodesByNamePattern
         .filter((p) => p.name.startsWith("@suggest-template/"))
         .map((p) => ({
@@ -118,7 +121,7 @@ function App() {
     <div class="c-module-stack">
       <section class="c-module-stack__section">
         <header class="c-split-header">
-          <h2>Thread</h2>
+          <h2>Thread container</h2>
           <span>
             <TemplateLocator templateNames={templateLibrary.threadTemplates.map((t) => t.name)} componentNamePattern="@thread" />
           </span>
@@ -141,7 +144,11 @@ function App() {
             <TemplateLocator templateNames={templateLibrary.userTemplates.map((t) => t.name)} componentNamePattern="@user-template" />
           </span>
         </header>
-        <textarea rows={6} ref={userMessageTextAreaRef}></textarea>
+        <textarea
+          rows={6}
+          ref={userMessageTextAreaRef}
+          placeholder="Enter any text to replace the {{content}} placeholder in the user message template."
+        ></textarea>
         <button
           onClick={() =>
             handleRenderItem({
@@ -206,7 +213,7 @@ function App() {
             <textarea
               rows={6}
               ref={copilotMessageVariableValueRef}
-              placeholder="Enter any text to replace the {{content}} string in the Copilot message template."
+              placeholder="Enter any text to replace the {{content}} placeholder in the Copilot message template."
             ></textarea>
           </div>
         </details>
@@ -214,16 +221,36 @@ function App() {
 
       <section class="c-module-stack__section">
         <header class="c-split-header">
-          <h2>Suggest</h2>
+          <h2>Suggest container</h2>
+          <span>
+            <TemplateLocator templateNames={templateLibrary.suggestContainer.map((t) => t.name)} componentNamePattern="@suggest-container" />
+          </span>
+        </header>
+        <button
+          onClick={() =>
+            handleRenderItem({
+              containerName: "@suggest-container",
+              clear: true,
+            })
+          }
+        >
+          Clear
+        </button>
+        <header class="c-split-header">
+          <h2>Suggest content</h2>
           <span>
             <TemplateLocator templateNames={templateLibrary.suggestTemplates.map((t) => t.name)} componentNamePattern="@suggest-template/*" />
           </span>
         </header>
         {templateLibrary.suggestTemplates.map((template) => (
           <button
-            onClick={() => {
-              /* tbd */
-            }}
+            onClick={() =>
+              handleRenderItem({
+                containerName: "@suggest-container",
+                templateName: template.name,
+                clear: "@suggestion-container",
+              })
+            }
           >
             {template.displayName}
           </button>
