@@ -1,9 +1,0 @@
-{
-  "name": "test new pluging",
-  "id": "1159231542696738325",
-  "api": "1.0.0",
-  "main": "code.js",
-  "editorType": [
-    "figma"
-  ]
-}

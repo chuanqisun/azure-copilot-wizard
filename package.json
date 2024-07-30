@@ -7,13 +7,10 @@
     "assistant": "concurrently npm:dev:assistant-plugin npm:dev:assistant-web npm:dev:server",
     "dev:assistant-plugin": "npm run dev -w apps/assistant/plugin",
     "dev:assistant-web": "npm run dev -w apps/assistant/web",
-    "dev:server": "npm run dev -w apps/server",
     "build": "npm run clean:server && concurrently npm:build:*",
     "build-assistant": "concurrently npm:build:assistant-plugin npm:build:assistant-web",
     "build:assistant-plugin": "npm run build -w apps/assistant/plugin",
-    "build:assistant-web": "npm run build -w apps/assistant/web",
-    "build:server": "npm run build -w apps/server",
-    "clean:server": "npm run clean -w apps/server"
+    "build:assistant-web": "npm run build -w apps/assistant/web"
   },
   "repository": {
     "type": "git",
@@ -30,7 +27,6 @@
     "apps/assistant/web",
     "apps/assistant/plugin",
     "apps/assistant/types",
-    "apps/server",
     "packages/*"
   ],
   "devDependencies": {

@@ -1,3 +1,0 @@
-- Counting all insights on all hits reports, 179184 native claims, 6230 guest claims (3.36%)
-  - Count insights are counted multiple times.
-- Counting all reports 2155 has no claims, 10519 has at least one claim, 814 (6%) has guest claim

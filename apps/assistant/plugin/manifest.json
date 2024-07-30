@@ -1,6 +1,6 @@
 {
-  "name": "HITS Assistant (beta)",
-  "id": "1169361201665902648",
+  "name": "Azure Copilot Wizard",
+  "id": "1400149109313416014",
   "api": "1.0.0",
   "main": "dist/main.js",
   "documentAccess": "dynamic-page",
@@ -8,12 +8,9 @@
     "figma",
     "figjam"
   ],
-  "permissions": [
-    "fileusers"
-  ],
   "networkAccess": {
     "allowedDomains": [
-      "https://h20-server.azurewebsites.net"
+      "https://replace-me-with-real-host.com"
     ],
     "reasoning": "access remote hosted UI",
     "devAllowedDomains": [

@@ -1,1 +1,0 @@
-swa deploy -n coherence-research-demo --env=production

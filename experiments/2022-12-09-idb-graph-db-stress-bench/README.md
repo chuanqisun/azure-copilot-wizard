@@ -1,5 +1,0 @@
-- Summary
-  - Avoid IndexedDB for claim entity tracking
-- Adding 141231 edges, 147417 nodes into indexed DB causes it to become unresponsive for 30+ seconds
-  - Each edges has four indexes: updatedOn, from, to, and fromTo
-  - Ech node has one index: updatedOn

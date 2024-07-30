@@ -1,9 +1,0 @@
-.app-header {
-  height: 40px;
-  display: flex;
-}
-input[name="search"] {
-  flex-grow: 1;
-  padding-inline-start: 0.5rem;
-  font-size: 18px;
-}

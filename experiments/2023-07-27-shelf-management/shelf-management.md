@@ -1,4 +1,0 @@
-- Browser tab inspired shelf management
-  - Mutable by default: each command will modify the current shelf
-  - New shelf on demand: Ctrl + Enter to duplicate and run in new shelf. Or user can manually add new shelf
-  - History stack within a shelf: Ctrl + Z to undo, Ctrl + Shift + Z to redo
