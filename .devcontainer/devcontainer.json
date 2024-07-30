@@ -4,17 +4,11 @@
     "dockerfile": "Dockerfile"
   },
   "remoteUser": "node",
-  "forwardPorts": [5200, 5201, 5202, 5300, 5400, 5500],
+  "forwardPorts": [5200],
   "postCreateCommand": "./.devcontainer/init.sh",
   "customizations": {
     "vscode": {
-      "extensions": [
-        "GitHub.copilot",
-        "esbenp.prettier-vscode",
-        "ms-vscode.azure-account",
-        "ms-azuretools.vscode-azurestorage",
-        "ms-azuretools.vscode-azureappservice"
-      ]
+      "extensions": ["esbenp.prettier-vscode"]
     }
   }
 }

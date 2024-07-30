@@ -32,7 +32,6 @@ jobs:
           npm run test --if-present
 
       # Ref for app service: https://learn.microsoft.com/en-us/azure/app-service/deploy-github-actions
-      # Service principal: gh-action-deployment-bot
       - name: azure login
         uses: azure/login@v1
         with:
