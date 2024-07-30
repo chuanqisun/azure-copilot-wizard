@@ -31,6 +31,7 @@ async function main() {
     minify: false, // TODO
     loader: {
       ".svg": "text",
+      ".png": "dataurl",
     },
     define: safeEnvDefines,
     outdir: "dist",
