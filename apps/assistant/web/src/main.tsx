@@ -14,6 +14,7 @@ interface TemplateLibrary {
   userTemplates: SearchNodeResult[];
   spinnerTemplates: SearchNodeResult[];
   copilotTemplates: (SearchNodeResult & { displayName: string })[];
+  suggestTemplates: (SearchNodeResult & { displayName: string })[];
 }
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
     threadTemplates: [],
     userTemplates: [],
     spinnerTemplates: [],
+    suggestTemplates: [],
   });
 
   // Figma RPC
@@ -58,6 +60,13 @@ function App() {
       threadTemplates: searchNodesByNamePattern.filter((p) => p.name === "@thread"),
       userTemplates: searchNodesByNamePattern.filter((p) => p.name === "@user-template"),
       spinnerTemplates: searchNodesByNamePattern.filter((p) => p.name === "@spinner-template"),
+      suggestTemplates: searchNodesByNamePattern
+        .filter((p) => p.name.startsWith("@suggest-template/"))
+        .map((p) => ({
+          ...p,
+          displayName: p.name.replace("@suggest-template/", ""),
+        }))
+        .sort((a, b) => a.displayName.localeCompare(b.displayName)),
       copilotTemplates: searchNodesByNamePattern
         .filter((p) => p.name.startsWith("@copilot-template/"))
         .map((p) => ({
@@ -201,6 +210,24 @@ function App() {
             ></textarea>
           </div>
         </details>
+      </section>
+
+      <section class="c-module-stack__section">
+        <header class="c-split-header">
+          <h2>Suggest</h2>
+          <span>
+            <TemplateLocator templateNames={templateLibrary.suggestTemplates.map((t) => t.name)} componentNamePattern="@suggest-template/*" />
+          </span>
+        </header>
+        {templateLibrary.suggestTemplates.map((template) => (
+          <button
+            onClick={() => {
+              /* tbd */
+            }}
+          >
+            {template.displayName}
+          </button>
+        ))}
       </section>
     </div>
   );
