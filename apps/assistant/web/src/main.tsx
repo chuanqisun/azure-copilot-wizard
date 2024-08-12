@@ -58,7 +58,7 @@ function App() {
 
   const handleLoadTemplates = async () => {
     const { searchNodesByNamePattern } = await proxyToFigma.request({
-      searchNodesByNamePattern: String.raw`@(copilot-template\/.+)|(thread)|(user-template)|(suggest-template)|(spinner-template)`,
+      searchNodesByNamePattern: String.raw`@(copilot-template\/.+)|(thread)|(user-template)|(suggest-container)|(suggest-template)|(spinner-template)`,
     });
     if (!searchNodesByNamePattern) return;
 
@@ -67,7 +67,7 @@ function App() {
       threadTemplates: searchNodesByNamePattern.filter(byName("@thread")),
       userTemplates: searchNodesByNamePattern.filter(byName("@user-template")),
       spinnerTemplates: searchNodesByNamePattern.filter(byName("@spinner-template")),
-      suggestContainer: searchNodesByNamePattern.filter(byName("@suggest-area")),
+      suggestContainer: searchNodesByNamePattern.filter(byName("@suggest-container")),
       suggestTemplates: searchNodesByNamePattern
         .filter(byNameStartsWith("@suggest-template/"))
         .map(addDisplayName("@suggest-template/"))
