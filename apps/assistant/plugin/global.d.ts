@@ -7,3 +7,8 @@ declare module "*.png" {
   const dataurl: string;
   export default dataurl;
 }
+
+declare module "*.html" {
+  const dataurl: string;
+  export default dataurl;
+}

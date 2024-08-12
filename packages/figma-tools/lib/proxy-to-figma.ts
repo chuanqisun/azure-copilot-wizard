@@ -4,11 +4,13 @@ export interface ProxyToFigma<MessageToFigma, MessageToWeb> {
   respond(request: MessageToWeb, response: MessageToFigma): void;
 }
 
+let currentId = 0;
+
 export function getProxyToFigma<MessageToFigma, MessageToWeb>(pluginId: string): ProxyToFigma<MessageToFigma, MessageToWeb> {
   const notify = (message: MessageToFigma) => sendMessage(pluginId, message);
 
   async function request(message: MessageToFigma) {
-    const _sourceId = crypto.randomUUID();
+    const _sourceId = ++currentId;
     return new Promise<MessageToWeb>((resolve) => {
       const messageHandler = (e: MessageEvent) => {
         const { _id, ...restOfMessage } = e.data.pluginMessage;

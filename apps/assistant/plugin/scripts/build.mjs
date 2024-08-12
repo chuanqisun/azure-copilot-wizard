@@ -16,11 +16,14 @@ async function main() {
     },
   ];
 
-  const safeEnvDefines = Object.fromEntries(
-    Object.entries(process.env)
-      .filter(([key, _value]) => key.startsWith("VITE_"))
-      .map(([key, value]) => [`process.env.${key}`, `"${value}"`])
-  );
+  const safeEnvDefines = {
+    ...Object.fromEntries(
+      Object.entries(process.env)
+        .filter(([key, _value]) => key.startsWith("VITE_"))
+        .map(([key, value]) => [`process.env.${key}`, `"${value}"`])
+    ),
+    "process.env.VITE_ENV": isDev ? `"development"` : `"production"`,
+  };
 
   const context = await esbuild.context({
     entryPoints: ["src/main.tsx"],
@@ -31,6 +34,7 @@ async function main() {
     minify: false, // TODO
     loader: {
       ".svg": "text",
+      ".html": "text",
       ".png": "dataurl",
     },
     define: safeEnvDefines,

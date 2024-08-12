@@ -17,6 +17,7 @@
       "http://localhost:5200"
     ]
   },
+  "ui": "dist/index.html",
   "containsWidget": true,
   "widgetApi": "1.0.0"
 }

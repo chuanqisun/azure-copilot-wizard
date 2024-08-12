@@ -4,11 +4,9 @@
   "description": "",
   "scripts": {
     "dev": "concurrently npm:dev:*",
-    "assistant": "concurrently npm:dev:assistant-plugin npm:dev:assistant-web npm:dev:server",
     "dev:assistant-plugin": "npm run dev -w apps/assistant/plugin",
     "dev:assistant-web": "npm run dev -w apps/assistant/web",
-    "build": "concurrently npm:build:*",
-    "build-assistant": "concurrently npm:build:assistant-plugin npm:build:assistant-web",
+    "build": "npm run build:assistant-web && npm run build:assistant-plugin",
     "build:assistant-plugin": "npm run build -w apps/assistant/plugin",
     "build:assistant-web": "npm run build -w apps/assistant/web"
   },
