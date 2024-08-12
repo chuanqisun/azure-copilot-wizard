@@ -47,14 +47,24 @@ export async function handleRenderAutoLayoutItem(message: MessageToFigma) {
 
     if (message.renderAutoLayoutItem.replacements) {
       const allTextNodes = instance.findAllWithCriteria({ types: ["TEXT"] });
-      const loadFonts = (allTextNodes.map((node) => node.fontName) as FontName[]).filter(
-        (value, index, self) => self.findIndex((t) => t.family === value.family && t.style === value.style) === index
-      ) as FontName[];
-      await Promise.all(loadFonts.map((font) => figma.loadFontAsync(font)));
 
+      const fontNames = allTextNodes
+        .flatMap((node) => (node.fontName === figma.mixed ? node.getRangeAllFontNames(0, node.characters.length) : [node.fontName]))
+        .filter((value, index, self) => self.findIndex((t) => t.family === value.family && t.style === value.style) === index) as FontName[];
+
+      console.log("will load fonts", fontNames);
+
+      await Promise.all(fontNames.map((font) => figma.loadFontAsync(font)));
+
+      // Known issue: when text has mixed style, setting textNode.characters will remove additional styles
       allTextNodes.forEach((textNode) => {
         Object.entries(message.renderAutoLayoutItem!.replacements!).forEach(([key, value]) => {
-          textNode.characters = textNode.characters.replace(`{{${key}}}`, value);
+          const before = textNode.characters;
+          const after = textNode.characters.replace(`{{${key}}}`, value);
+          if (before !== after) {
+            // avoid setting characters when it's not necessary, due to known issue above
+            textNode.characters = textNode.characters.replace(`{{${key}}}`, value);
+          }
         });
       });
     }
