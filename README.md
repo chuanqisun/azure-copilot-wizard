@@ -6,5 +6,5 @@
 npm install
 npm run dev
 
-# Go to Figma, import plugin from manifest at /apps/plugin/manifest.json
+# Go to Figma, import plugin from manifest at /apps/assistant/plugin/manifest.json
 ```
