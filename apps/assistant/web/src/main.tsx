@@ -118,6 +118,8 @@ function App() {
 
   return (
     <div class="c-module-stack">
+
+      {/* Thread container */}
       <section class="c-module-stack__section">
         <header class="c-split-header">
           <h2>Thread container</h2>
@@ -136,6 +138,8 @@ function App() {
           <button onClick={() => handleRenderItem({ containerName: "@thread", clear: true })}>Clear</button>
         </menu>
       </section>
+
+      {/* User message */}
       <section class="c-module-stack__section">
         <header class="c-split-header">
           <h2>User message</h2>
@@ -163,62 +167,8 @@ function App() {
         </button>
       </section>
 
-      <section class="c-module-stack__section">
-        <header class="c-split-header">
-          <h2>Spinner</h2>
-          <span>
-            <TemplateLocator templateNames={templateLibrary.spinnerTemplates.map((t) => t.name)} componentNamePattern="@spinner-template" />
-          </span>
-        </header>
-        <button
-          onClick={() =>
-            handleRenderItem({
-              containerName: "@thread",
-              templateName: "@spinner-template",
-              clear: "@spinner-instance",
-            })
-          }
-        >
-          Show spinner
-        </button>
-      </section>
-
-      <section class="c-module-stack__section">
-        <div class="c-split-header">
-          <h2>Copilot message</h2>
-          <span>
-            <TemplateLocator templateNames={templateLibrary.copilotTemplates.map((t) => t.name)} componentNamePattern="@copilot-template/*" />
-          </span>
-        </div>
-        {templateLibrary.copilotTemplates.map((template) => (
-          <button
-            onClick={() =>
-              handleRenderItem({
-                containerName: "@thread",
-                templateName: template.name,
-                clear: "@spinner-instance",
-                replacements: {
-                  content: copilotMessageVariableValueRef.current?.value ?? "",
-                },
-              }).then(() => clearTextAreaElement(copilotMessageVariableValueRef.current))
-            }
-          >
-            {template.displayName}
-          </button>
-        ))}
-        <details open>
-          <summary>Variable value</summary>
-          <div class="c-module-stack__section c-module-stack__no-padding">
-            <textarea
-              rows={6}
-              ref={copilotMessageVariableValueRef}
-              placeholder="Enter any text to replace the {{content}} placeholder in the Copilot message template."
-            ></textarea>
-          </div>
-        </details>
-      </section>
-
-      <section class="c-module-stack__section">
+       {/* Suggest container */}
+       <section class="c-module-stack__section">
         <header class="c-split-header">
           <h2>Suggest container</h2>
           <span>
@@ -255,6 +205,64 @@ function App() {
           </button>
         ))}
       </section>
+
+      {/* Spinner */}
+      <section class="c-module-stack__section">
+        <header class="c-split-header">
+          <h2>Spinner</h2>
+          <span>
+            <TemplateLocator templateNames={templateLibrary.spinnerTemplates.map((t) => t.name)} componentNamePattern="@spinner-template" />
+          </span>
+        </header>
+        <button
+          onClick={() =>
+            handleRenderItem({
+              containerName: "@thread",
+              templateName: "@spinner-template",
+              clear: "@spinner-instance",
+            })
+          }
+        >
+          Show spinner
+        </button>
+      </section>
+
+      {/* Copilot message */}
+      <section class="c-module-stack__section">
+        <div class="c-split-header">
+          <h2>Copilot message</h2>
+          <span>
+            <TemplateLocator templateNames={templateLibrary.copilotTemplates.map((t) => t.name)} componentNamePattern="@copilot-template/*" />
+          </span>
+        </div>
+        {templateLibrary.copilotTemplates.map((template) => (
+          <button
+            onClick={() =>
+              handleRenderItem({
+                containerName: "@thread",
+                templateName: template.name,
+                clear: "@spinner-instance",
+                replacements: {
+                  content: copilotMessageVariableValueRef.current?.value ?? "",
+                },
+              }).then(() => clearTextAreaElement(copilotMessageVariableValueRef.current))
+            }
+          >
+            {template.displayName}
+          </button>
+        ))}
+        <details open>
+          <summary>Variable value</summary>
+          <div class="c-module-stack__section c-module-stack__no-padding">
+            <textarea
+              rows={6}
+              ref={copilotMessageVariableValueRef}
+              placeholder="Enter any text to replace the {{content}} placeholder in the Copilot message template."
+            ></textarea>
+          </div>
+        </details>
+      </section>
+
     </div>
   );
 }
