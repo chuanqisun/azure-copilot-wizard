@@ -159,6 +159,7 @@ function App() {
     return (
       <div ref={(node) => ref(drop(node))}>
         <button
+        style={{ width: '100%' }}
         onClick={() =>
           handleRenderItem({
             containerName: "@thread",
