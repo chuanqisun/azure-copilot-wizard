@@ -2,7 +2,8 @@ import type { MessageToFigma, MessageToWeb, RenderAutoLayoutItem, SearchNodeResu
 import { getProxyToFigma } from "@h20/figma-tools";
 import { render } from "preact";
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
-
+import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
 const proxyToFigma = getProxyToFigma<MessageToFigma, MessageToWeb>(import.meta.env.VITE_PLUGIN_ID);
 
 // remove loading placeholder
@@ -113,6 +114,63 @@ function App() {
       >
         ❖{options.componentNamePattern} ⚠️
       </a>
+    );
+  };
+
+  //drag and drop
+  const ItemType = {
+    TEMPLATE: 'template',
+  };
+
+  interface DraggableButtonProps {
+    template: any; // Replace 'any' with the actual type if known
+    index: number;
+    moveTemplate: (fromIndex: number, toIndex: number) => void;
+  }
+
+  const moveTemplate = (fromIndex: number, toIndex: number) => {
+    setTemplateLibrary((prev) => {
+      const updatedTemplates = [...prev.copilotTemplates];
+      const [movedItem] = updatedTemplates.splice(fromIndex, 1);
+      updatedTemplates.splice(toIndex, 0, movedItem);
+      return { ...prev, copilotTemplates: updatedTemplates };
+    });
+  };
+  interface DraggedItem {
+    index: number;
+  }
+
+  const DraggableButton = ({ template, index, moveTemplate }: DraggableButtonProps) => {
+    const [, ref] = useDrag({
+      type: ItemType.TEMPLATE,
+      item: { index },
+    });
+
+    const [, drop] = useDrop({
+      accept: ItemType.TEMPLATE,
+      hover: (draggedItem: DraggedItem) => {
+        if (draggedItem.index !== index) {
+          moveTemplate(draggedItem.index, index);
+          draggedItem.index = index;
+        }
+      },
+    });
+
+    return (
+      <div ref={(node) => ref(drop(node))}>
+        <button
+        onClick={() =>
+          handleRenderItem({
+            containerName: "@thread",
+            templateName: template.name,
+            clear: "@spinner-instance",
+            replacements: {
+              content: copilotMessageVariableValueRef.current?.value ?? "",
+            },
+          }).then(() => clearTextAreaElement(copilotMessageVariableValueRef.current))
+        }
+        >{template.displayName}</button>
+      </div>
     );
   };
 
@@ -228,40 +286,34 @@ function App() {
       </section>
 
       {/* Copilot message */}
-      <section class="c-module-stack__section">
-        <div class="c-split-header">
-          <h2>Copilot message</h2>
-          <span>
-            <TemplateLocator templateNames={templateLibrary.copilotTemplates.map((t) => t.name)} componentNamePattern="@copilot-template/*" />
-          </span>
-        </div>
-        {templateLibrary.copilotTemplates.map((template) => (
-          <button
-            onClick={() =>
-              handleRenderItem({
-                containerName: "@thread",
-                templateName: template.name,
-                clear: "@spinner-instance",
-                replacements: {
-                  content: copilotMessageVariableValueRef.current?.value ?? "",
-                },
-              }).then(() => clearTextAreaElement(copilotMessageVariableValueRef.current))
-            }
-          >
-            {template.displayName}
-          </button>
-        ))}
-        <details open>
-          <summary>Variable value</summary>
-          <div class="c-module-stack__section c-module-stack__no-padding">
-            <textarea
-              rows={6}
-              ref={copilotMessageVariableValueRef}
-              placeholder="Enter any text to replace the {{content}} placeholder in the Copilot message template."
-            ></textarea>
+      <DndProvider backend={HTML5Backend}>
+        <section class="c-module-stack__section">
+          <div class="c-split-header">
+            <h2>Copilot message</h2>
+            <span>
+              <TemplateLocator templateNames={templateLibrary.copilotTemplates.map((t) => t.name)} componentNamePattern="@copilot-template/*" />
+            </span>
           </div>
-        </details>
-      </section>
+          {templateLibrary.copilotTemplates.map((template, index) => (
+            <DraggableButton
+              key={template.name}
+              template={template}
+              index={index}
+              moveTemplate={moveTemplate}
+            />
+          ))}
+          <details open>
+            <summary>Variable value</summary>
+            <div class="c-module-stack__section c-module-stack__no-padding">
+              <textarea
+                rows={6}
+                ref={copilotMessageVariableValueRef}
+                placeholder="Enter any text to replace the {{content}} placeholder in the Copilot message template."
+              ></textarea>
+            </div>
+          </details>
+        </section>
+      </DndProvider>
 
     </div>
   );
